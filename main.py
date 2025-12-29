@@ -3,16 +3,24 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-class WebhookData(BaseModel):
-    texto: str
+class TextData(BaseModel):
+    message: str
+
+class ZapiWebhook(BaseModel):
+    phone: str
+    text: TextData
 
 @app.get("/")
 def inicio():
-    return {"mensagem": "Minha API está funcionando!"}
+    return {"mensagem": "API WhatsApp rodando!"}
 
 @app.post("/webhook")
-async def webhook(dados: WebhookData):
+async def webhook(dados: ZapiWebhook):
+    telefone = dados.phone
+    mensagem = dados.text.message
+
     return {
-        "status": "recebido",
-        "dados": dados.dict()
+        "status": "ok",
+        "telefone": telefone,
+        "mensagem_recebida": mensagem
     }
