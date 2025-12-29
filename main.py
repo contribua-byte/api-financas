@@ -61,3 +61,20 @@ def resumo():
         "soma": soma
     }
 
+from fastapi.responses import StreamingResponse
+import io
+@app.get("/exportar")
+def exportar():
+    output = io.StringIO()
+    output.write("valor,descricao\n")
+
+    for g in gastos:
+        output.write(f"{g['valor']},{g['descricao']}\n")
+
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=gastos.csv"}
+    )
