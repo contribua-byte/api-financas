@@ -3,6 +3,9 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+# Lista em memória para guardar mensagens
+registros = []
+
 class WebhookData(BaseModel):
     mensagem: str
 
@@ -12,9 +15,17 @@ def inicio():
 
 @app.post("/webhook")
 async def webhook(dados: WebhookData):
-    texto = dados.mensagem
+    registros.append(dados.mensagem)
 
     return {
         "status": "ok",
-        "recebido": texto
+        "total_registros": len(registros),
+        "ultimo": dados.mensagem
+    }
+
+@app.get("/registros")
+def listar_registros():
+    return {
+        "total": len(registros),
+        "registros": registros
     }
