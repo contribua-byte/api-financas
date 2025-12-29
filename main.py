@@ -53,3 +53,11 @@ def listar_gastos():
         "total": len(gastos),
         "gastos": gastos
     }
+@app.get("/resumo")
+def resumo():
+    soma = sum(g["valor"] for g in gastos)
+    return {
+        "total_registros": len(gastos),
+        "soma": soma
+    }
+
