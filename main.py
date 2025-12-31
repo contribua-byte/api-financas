@@ -1,8 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
 import re
+import io
 
 app = FastAPI()
+
+# TOKEN de verificação do WhatsApp (use o mesmo na Meta)
+VERIFY_TOKEN = "financas_api_2025"
 
 # Lista de gastos em memória
 gastos = []
@@ -10,12 +15,28 @@ gastos = []
 class WebhookData(BaseModel):
     mensagem: str
 
+
 @app.get("/")
 def inicio():
     return {"mensagem": "API de Finanças rodando!"}
 
+
+# 🔹 Endpoint usado pela Meta para verificar o webhook
+@app.get("/webhook")
+async def verificar_webhook(request: Request):
+    params = request.query_params
+
+    hub_mode = params.get("hub.mode")
+    hub_token = params.get("hub.verify_token")
+    hub_challenge = params.get("hub.challenge")
+
+    if hub_mode == "subscribe" and hub_token == VERIFY_TOKEN:
+        return int(hub_challenge)
+
+    return {"erro": "Token inválido"}
+
+
 def interpretar_mensagem(texto: str):
-    # procura número na mensagem
     valor_match = re.search(r"(\d+([.,]\d+)?)", texto)
     if not valor_match:
         return None, None
@@ -25,6 +46,8 @@ def interpretar_mensagem(texto: str):
 
     return valor, descricao
 
+
+# 🔹 Endpoint que vai receber mensagens (WhatsApp no futuro)
 @app.post("/webhook")
 async def webhook(dados: WebhookData):
     texto = dados.mensagem.lower()
@@ -47,12 +70,15 @@ async def webhook(dados: WebhookData):
         "total_registros": len(gastos)
     }
 
+
 @app.get("/gastos")
 def listar_gastos():
     return {
         "total": len(gastos),
         "gastos": gastos
     }
+
+
 @app.get("/resumo")
 def resumo():
     soma = sum(g["valor"] for g in gastos)
@@ -61,8 +87,7 @@ def resumo():
         "soma": soma
     }
 
-from fastapi.responses import StreamingResponse
-import io
+
 @app.get("/exportar")
 def exportar():
     output = io.StringIO()
