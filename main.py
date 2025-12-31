@@ -48,14 +48,39 @@ def interpretar_mensagem(texto: str):
 
 
 # 🔹 Endpoint que vai receber mensagens (WhatsApp no futuro)
-@app.post("/webhook")
-async def webhook(dados: WebhookData):
-    texto = dados.mensagem.lower()
+@@app.post("/webhook")
+async def webhook(request: Request):
+    data = await request.json()
+
+    print("📩 PAYLOAD RECEBIDO:", data)
+
+    try:
+        entry = data.get("entry", [])
+        if not entry:
+            return {"status": "sem_entry"}
+
+        changes = entry[0].get("changes", [])
+        if not changes:
+            return {"status": "sem_changes"}
+
+        value = changes[0].get("value", {})
+
+        messages = value.get("messages")
+        if not messages:
+            return {"status": "evento_sem_mensagem"}
+
+        mensagem = messages[0]["text"]["body"]
+
+    except Exception as e:
+        print("❌ ERRO AO LER MENSAGEM:", e)
+        return {"status": "erro_parse"}
+
+    texto = mensagem.lower()
 
     valor, descricao = interpretar_mensagem(texto)
 
     if valor is None:
-        return {"status": "erro", "mensagem": "Não encontrei valor na mensagem."}
+        return {"status": "sem_valor"}
 
     gasto = {
         "valor": valor,
@@ -69,7 +94,6 @@ async def webhook(dados: WebhookData):
         "gasto": gasto,
         "total_registros": len(gastos)
     }
-
 
 @app.get("/gastos")
 def listar_gastos():
