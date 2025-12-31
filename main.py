@@ -1,42 +1,28 @@
 from fastapi import FastAPI, Request
-from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 import re
 import io
 
 app = FastAPI()
 
-# TOKEN de verificação do WhatsApp (use o mesmo na Meta)
-VERIFY_TOKEN = "financas_api_2025"
-
-# Lista de gastos em memória
+# =========================
+# ARMAZENAMENTO EM MEMÓRIA
+# =========================
 gastos = []
 
-class WebhookData(BaseModel):
-    mensagem: str
-
-
+# =========================
+# ROTAS BÁSICAS
+# =========================
 @app.get("/")
 def inicio():
     return {"mensagem": "API de Finanças rodando!"}
 
-
-# 🔹 Endpoint usado pela Meta para verificar o webhook
-@app.get("/webhook")
-async def verificar_webhook(request: Request):
-    params = request.query_params
-
-    hub_mode = params.get("hub.mode")
-    hub_token = params.get("hub.verify_token")
-    hub_challenge = params.get("hub.challenge")
-
-    if hub_mode == "subscribe" and hub_token == VERIFY_TOKEN:
-        return int(hub_challenge)
-
-    return {"erro": "Token inválido"}
-
-
+# =========================
+# FUNÇÃO AUXILIAR
+# =========================
 def interpretar_mensagem(texto: str):
+    # Procura um número na mensagem (ex: 30, 30.50, 30,50)
     valor_match = re.search(r"(\d+([.,]\d+)?)", texto)
     if not valor_match:
         return None, None
@@ -46,12 +32,14 @@ def interpretar_mensagem(texto: str):
 
     return valor, descricao
 
-
-# 🔹 Endpoint que vai receber mensagens (WhatsApp no futuro)
-@@app.post("/webhook")
+# =========================
+# WEBHOOK WHATSAPP (OFICIAL)
+# =========================
+@app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
 
+    # Log para debug no Render
     print("📩 PAYLOAD RECEBIDO:", data)
 
     try:
@@ -72,7 +60,7 @@ async def webhook(request: Request):
         mensagem = messages[0]["text"]["body"]
 
     except Exception as e:
-        print("❌ ERRO AO LER MENSAGEM:", e)
+        print("❌ ERRO AO PROCESSAR MENSAGEM:", e)
         return {"status": "erro_parse"}
 
     texto = mensagem.lower()
@@ -95,6 +83,9 @@ async def webhook(request: Request):
         "total_registros": len(gastos)
     }
 
+# =========================
+# LISTAR GASTOS
+# =========================
 @app.get("/gastos")
 def listar_gastos():
     return {
@@ -102,7 +93,9 @@ def listar_gastos():
         "gastos": gastos
     }
 
-
+# =========================
+# RESUMO
+# =========================
 @app.get("/resumo")
 def resumo():
     soma = sum(g["valor"] for g in gastos)
@@ -111,7 +104,9 @@ def resumo():
         "soma": soma
     }
 
-
+# =========================
+# EXPORTAR CSV
+# =========================
 @app.get("/exportar")
 def exportar():
     output = io.StringIO()
